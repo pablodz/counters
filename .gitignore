@@ -1,0 +1,12 @@
+# Binaries
+/counters
+*.exe
+
+# Env (contiene credenciales reales)
+.env
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

@@ -23,14 +23,9 @@ func main() {
 	app.Get("/healthz", handlers.Health)
 
 	v1 := app.Group("/api/v1")
-	v1.Post("/metrics/batch", handlers.BatchIncrement)
-	v1.Post("/metrics/:content_type/:content_id/view", handlers.View())
-	v1.Post("/metrics/:content_type/:content_id/like", handlers.Like())
-	v1.Post("/metrics/:content_type/:content_id/share", handlers.Share())
-	v1.Post("/metrics/:content_type/:content_id/increment", handlers.Increment)
-	v1.Post("/metrics/:content_type/:content_id/reset", handlers.Reset)
-	v1.Get("/metrics/:content_type/:content_id/:field", handlers.GetField)
-	v1.Get("/metrics/:content_type/:content_id", handlers.GetMetrics)
+	v1.Post("/metrics", handlers.IncrementEvent)
+	v1.Get("/:item_type/:item_id", handlers.GetMetrics)
+	v1.Get("/histogram/:item_type/:item_id/:event_type", handlers.GetHistogram)
 
 	if err := app.Listen(":8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

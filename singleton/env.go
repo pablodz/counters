@@ -9,8 +9,6 @@ var (
 	CF_ACCOUNT_ID     = os.Getenv("CF_ACCOUNT_ID")
 	CF_D1_DATABASE_ID = os.Getenv("CF_D1_DATABASE_ID")
 	D1_API_TOKEN      = os.Getenv("CF_D1_API_TOKEN")
-	COUNTERS_API_KEY  = os.Getenv("COUNTERS_API_KEY")
-	PORT              = os.Getenv("PORT")
 )
 
 func ValidateRequiredEnv() {

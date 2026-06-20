@@ -3,63 +3,104 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/pablodz/counters/data/models"
 	"github.com/pablodz/counters/singleton"
 )
 
-const selectColumns = "content_id, content_type, views_count, likes_count, shares_count, updated_at"
+func LogInteraction(itemID, itemType, eventType string, unixHour int64) error {
+	sql := `INSERT INTO item_snapshots (item_id, item_type, event_type, period_hour_unix, total_count)
+		VALUES (?, ?, ?, ?, 1)
+		ON CONFLICT(item_id, item_type, event_type, period_hour_unix) DO UPDATE SET total_count = total_count + 1`
+	if _, err := singleton.D1Exec(sql, itemID, itemType, eventType, unixHour); err != nil {
+		return err
+	}
+	return nil
+}
 
-func GetMetrics(contentType, contentID string) (*models.Metrics, error) {
-	raw, err := singleton.D1Exec(
-		"SELECT "+selectColumns+" FROM post_metrics WHERE content_id = ? AND content_type = ?",
-		contentID, contentType,
-	)
+func GetMetrics(itemID, itemType string) (*models.Metrics, error) {
+	sql := `SELECT event_type, SUM(total_count) AS total_count
+		FROM item_snapshots
+		WHERE item_id = ? AND item_type = ?
+		GROUP BY event_type`
+
+	raw, err := singleton.D1Exec(sql, itemID, itemType)
 	if err != nil {
 		return nil, err
 	}
-	var rows []models.Metrics
+
+	var rows []struct {
+		EventType string `json:"event_type"`
+		Total     int    `json:"total_count"`
+	}
 	if err := json.Unmarshal(raw, &rows); err != nil {
 		return nil, err
 	}
-	if len(rows) == 0 {
-		return &models.Metrics{ContentID: contentID, ContentType: contentType}, nil
+
+	metrics := &models.Metrics{
+		ItemID:      itemID,
+		ItemType:    itemType,
+		ViewsCount:  0,
+		LikesCount:  0,
+		SharesCount: 0,
 	}
-	return &rows[0], nil
+
+	for _, row := range rows {
+		switch row.EventType {
+		case "view":
+			metrics.ViewsCount = row.Total
+		case "like":
+			metrics.LikesCount = row.Total
+		case "share":
+			metrics.SharesCount = row.Total
+		}
+	}
+
+	metrics.UpdatedAt = time.Now().Unix()
+	return metrics, nil
 }
 
-func IncrementMetric(contentType, contentID, field string, amount int) (*models.Metrics, error) {
-	views, likes, shares := 0, 0, 0
-	switch field {
-	case "views_count":
-		views = amount
-	case "likes_count":
-		likes = amount
-	case "shares_count":
-		shares = amount
-	default:
-		return nil, fmt.Errorf("invalid field: %s", field)
+func GetHistogram(itemID, itemType, eventType string, resolution string, from, to int64) ([]models.HistogramBucket, error) {
+	secs, ok := models.ResolutionSeconds[resolution]
+	if !ok {
+		return nil, fmt.Errorf("invalid resolution %q: must be one of 1h, 1d, 1w, 1M", resolution)
+	}
+	if secs < models.ResolutionSeconds["1h"] {
+		return nil, fmt.Errorf("resolution must be at least 1h")
+	}
+	if to <= 0 {
+		to = time.Now().Unix()
+	}
+	if from <= 0 {
+		from = to - 30*86400
+	}
+	if from >= to {
+		return nil, fmt.Errorf("invalid time window: from must be less than to")
 	}
 
-	sql := `INSERT INTO post_metrics (content_id, content_type, views_count, likes_count, shares_count, updated_at)
-		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(content_id, content_type) DO UPDATE SET
-			views_count = views_count + excluded.views_count,
-			likes_count = likes_count + excluded.likes_count,
-			shares_count = shares_count + excluded.shares_count,
-			updated_at = CURRENT_TIMESTAMP`
-	if _, err := singleton.D1Exec(sql, contentID, contentType, views, likes, shares); err != nil {
-		return nil, err
+	var bucketExpr string
+	if resolution == "1M" {
+		bucketExpr = "strftime('%s', strftime('%Y-%m-01', period_hour_unix, 'unixepoch'))"
+	} else {
+		bucketExpr = fmt.Sprintf("(period_hour_unix / %d) * %d", secs, secs)
 	}
-	return GetMetrics(contentType, contentID)
-}
 
-func ResetMetric(contentType, contentID string) (*models.Metrics, error) {
-	if _, err := singleton.D1Exec(
-		"UPDATE post_metrics SET views_count = 0, likes_count = 0, shares_count = 0, updated_at = CURRENT_TIMESTAMP WHERE content_id = ? AND content_type = ?",
-		contentID, contentType,
-	); err != nil {
+	sql := fmt.Sprintf(`SELECT %s AS bucket, SUM(total_count) AS total
+		FROM item_snapshots
+		WHERE item_id = ? AND item_type = ? AND event_type = ?
+		AND period_hour_unix >= ? AND period_hour_unix < ?
+		GROUP BY bucket
+		ORDER BY bucket ASC`, bucketExpr)
+
+	raw, err := singleton.D1Exec(sql, itemID, itemType, eventType, from, to)
+	if err != nil {
 		return nil, err
 	}
-	return GetMetrics(contentType, contentID)
+
+	var rows []models.HistogramBucket
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

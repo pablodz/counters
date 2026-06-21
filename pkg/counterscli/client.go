@@ -102,8 +102,7 @@ func GetMetrics(itemType, itemID string) (*Metrics, error) {
 }
 
 func GetHistogram(itemType, itemID, eventType, resolution string, from, to int64) ([]HistogramBucket, error) {
-	url := BaseURL + "/api/v1/histogram/" + itemType + "/" + itemID + "/" + eventType +
-		"?resolution=" + resolution
+	url := BaseURL + "/api/v1/histogram/" + itemType + "/" + itemID + "/" + eventType + "?resolution=" + resolution
 	if from > 0 {
 		url += fmt.Sprintf("&from=%d", from)
 	}

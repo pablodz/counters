@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/pablodz/counters/data/models"
@@ -17,8 +18,15 @@ func GetMetrics(c fiber.Ctx) error {
 	itemID := c.Params("item_id")
 
 	m, err := store.GetMetrics(itemID, itemType)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if err != nil || m == nil {
+		return c.JSON(&models.Metrics{
+			ItemID:      itemID,
+			ItemType:    itemType,
+			ViewsCount:  0,
+			LikesCount:  0,
+			SharesCount: 0,
+			UpdatedAt:   time.Now().Unix(),
+		})
 	}
 	return c.JSON(m)
 }
@@ -64,9 +72,7 @@ func GetHistogram(c fiber.Ctx) error {
 
 	resolution := c.Query("resolution", "1h")
 	if _, ok := models.ResolutionSeconds[resolution]; !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid resolution, must be one of: 1h, 1d, 1w, 1M",
-		})
+		resolution = "1h"
 	}
 
 	var from, to int64
@@ -79,7 +85,7 @@ func GetHistogram(c fiber.Ctx) error {
 
 	result, err := store.GetHistogram(itemID, itemType, eventType, resolution, from, to)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.JSON([]models.HistogramBucket{})
 	}
 	return c.JSON(result)
 }

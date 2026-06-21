@@ -1,7 +1,6 @@
 package counterscli
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,18 +48,15 @@ func SetBaseURL(url string) {
 }
 
 func IncrementEvent(event Event) error {
-	body, err := json.Marshal(event)
+	url := BaseURL + "/api/v1/" + event.ItemType + "/" + event.ItemID + "/" + event.EventType
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
-	reqBody, err := http.NewRequest("POST", BaseURL+"/api/v1/metrics", bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	reqBody.Header.Set("Content-Type", "application/json")
-
-	resp, err := httpClient.Do(reqBody)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -77,7 +73,7 @@ func IncrementEvent(event Event) error {
 func GetMetrics(itemType, itemID string) (*Metrics, error) {
 	url := BaseURL + "/api/v1/" + itemType + "/" + itemID
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +106,7 @@ func GetHistogram(itemType, itemID, eventType, resolution string, from, to int64
 		url += fmt.Sprintf("&to=%d", to)
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -132,9 +128,4 @@ func GetHistogram(itemType, itemID, eventType, resolution string, from, to int64
 		return nil, err
 	}
 	return result, nil
-}
-
-// SetHTTPClient overrides the internal HTTP client (useful for testing).
-func SetHTTPClient(client *http.Client) {
-	httpClient = client
 }

@@ -15,9 +15,8 @@ var (
 )
 
 type Event struct {
-	ItemID    string `json:"item_id"`
-	ItemType  string `json:"item_type"`
-	EventType string `json:"event_type"`
+	ItemID   string `json:"item_id"`
+	ItemType string `json:"item_type"`
 }
 
 type Metrics struct {
@@ -47,8 +46,20 @@ func SetBaseURL(url string) {
 	BaseURL = url
 }
 
-func IncrementEvent(event Event) error {
-	url := BaseURL + "/api/v1/" + event.ItemType + "/" + event.ItemID + "/" + event.EventType
+func IncrementLike(event Event) error {
+	return incrementEvent(event.ItemType, event.ItemID, "like")
+}
+
+func IncrementShare(event Event) error {
+	return incrementEvent(event.ItemType, event.ItemID, "share")
+}
+
+func IncrementView(event Event) error {
+	return incrementEvent(event.ItemType, event.ItemID, "view")
+}
+
+func incrementEvent(itemType, itemID, eventType string) error {
+	url := BaseURL + "/api/v1/" + itemType + "/" + itemID + "/" + eventType
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

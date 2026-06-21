@@ -31,12 +31,6 @@ func GetMetrics(c fiber.Ctx) error {
 	return c.JSON(m)
 }
 
-type eventRequest struct {
-	ItemID    string `json:"item_id"`
-	ItemType  string `json:"item_type"`
-	EventType string `json:"event_type"`
-}
-
 func IncrementEvent(c fiber.Ctx) error {
 	itemType := c.Params("item_type")
 	itemID := c.Params("item_id")
@@ -88,7 +82,11 @@ func GetHistogram(c fiber.Ctx) error {
 
 	result, err := store.GetHistogram(itemID, itemType, eventType, resolution, from, to)
 	if err != nil {
-		return c.JSON([]models.HistogramBucket{})
+		data := []models.HistogramBucket{}
+		for i := from; i <= to; i += models.ResolutionSeconds[resolution] {
+			data = append(data, models.HistogramBucket{Bucket: i, Total: 0})
+		}
+		return c.JSON(data)
 	}
 	return c.JSON(result)
 }

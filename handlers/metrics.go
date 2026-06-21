@@ -38,27 +38,30 @@ type eventRequest struct {
 }
 
 func IncrementEvent(c fiber.Ctx) error {
-	var e eventRequest
-	if err := c.Bind().Body(&e); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON body"})
+	itemType := c.Params("item_type")
+	itemID := c.Params("item_id")
+	eventType := c.Params("event_type")
+
+	if itemType == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type required"})
 	}
-	if e.EventType == "" {
+	if itemID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_id required"})
+	}
+	if eventType == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "event_type required"})
-	}
-	if e.ItemType == "" || e.ItemID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type and item_id required"})
 	}
 
 	unixHour, err := models.PrepararDatosInteraccion(models.TrackingPayload{
-		ItemID:    e.ItemID,
-		ItemType:  e.ItemType,
-		EventType: e.EventType,
+		ItemID:    itemID,
+		ItemType:  itemType,
+		EventType: eventType,
 	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if err := store.LogInteraction(e.ItemID, e.ItemType, e.EventType, unixHour); err != nil {
+	if err := store.LogInteraction(itemID, itemType, eventType, unixHour); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 

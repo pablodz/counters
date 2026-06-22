@@ -64,3 +64,15 @@ func GetHistogram(c fiber.Ctx) error {
 	}
 	return c.JSON(result)
 }
+
+func GetRecentActivity(c fiber.Ctx) error {
+	itemType := c.Params("item_type")
+	itemID := c.Params("item_id")
+
+	result, err := store.GetRecentActivity(itemID, itemType)
+	if err != nil {
+		log.Printf("error getting recent activity: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get recent activity"})
+	}
+	return c.JSON(result)
+}

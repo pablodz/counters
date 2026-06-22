@@ -134,3 +134,23 @@ func GetHistogram(itemID, itemType string, resolution string) ([]models.Histogra
 
 	return buckets, nil
 }
+
+// Return last 20 points of recent activity for the given item
+func GetRecentActivity(itemID string, itemType string) ([]models.AuditLogPayload, error) {
+	sql := `SELECT * FROM audit_log
+		WHERE item_id = ? AND item_type = ?
+		ORDER BY timestamp DESC
+		LIMIT 20`
+
+	raw, err := singleton.D1Exec(sql, itemID, itemType)
+	if err != nil {
+		return nil, err
+	}
+
+	var dbRows []models.AuditLogPayload
+	if err := json.Unmarshal(raw, &dbRows); err != nil {
+		return nil, err
+	}
+
+	return dbRows, nil
+}

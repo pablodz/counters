@@ -58,30 +58,30 @@ func incrementEvent(itemType, itemID, eventType, userId string) error {
 	return nil
 }
 
-func GetMetrics(itemType, itemID string) (map[string]int, error) {
+func GetMetrics(itemType, itemID string) (models.Metrics, error) {
 	url := fmt.Sprintf("%s/api/v1/%s/%s", BaseURL, itemType, itemID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("get metrics failed: %d %s", resp.StatusCode, string(bodyBytes))
+		return models.Metrics{}, fmt.Errorf("get metrics failed: %d %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var result map[string]int
+	var result models.Metrics
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 
 	return result, nil
@@ -109,6 +109,34 @@ func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket
 	}
 
 	var result []models.HistogramBucket
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func GetRecentActivity(itemType, itemID string) ([]models.AuditLogPayload, error) {
+	url := fmt.Sprintf("%s/api/v1/activity/%s/%s", BaseURL, itemType, itemID)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("get recent activity failed: %d %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result []models.AuditLogPayload
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}

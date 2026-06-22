@@ -76,7 +76,6 @@ func GetMetricsList(c fiber.Ctx) error {
 	result, err := store.GetMetricsList(itemType, itemIDs)
 	if err != nil {
 		log.Printf("error getting metrics list: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(result)

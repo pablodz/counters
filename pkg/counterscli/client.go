@@ -39,6 +39,10 @@ func IncrementView(itemId, itemType, userId string) error {
 
 func incrementEvent(itemType, itemID, eventType, userId string) error {
 	url := BaseURL + fmt.Sprintf(handlers.IncrementEventURL, itemType, itemID, eventType, userId)
+	return get(url, nil)
+}
+
+func get(url string, result any) error {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -55,123 +59,37 @@ func incrementEvent(itemType, itemID, eventType, userId string) error {
 		return err
 	}
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("increment event failed: %d %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("request failed: %d %s", resp.StatusCode, string(bodyBytes))
 	}
-	return nil
+
+	return json.Unmarshal(bodyBytes, result)
 }
 
 func GetMetrics(itemType, itemID string) (models.Metrics, error) {
 	url := BaseURL + fmt.Sprintf(handlers.GetMetricsURL, itemType, itemID)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return models.Metrics{}, err
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return models.Metrics{}, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return models.Metrics{}, err
-	}
-	if resp.StatusCode >= 400 {
-		return models.Metrics{}, fmt.Errorf("get metrics failed: %d %s", resp.StatusCode, string(bodyBytes))
-	}
-
 	var result models.Metrics
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return models.Metrics{}, err
-	}
-
-	return result, nil
+	err := get(url, &result)
+	return result, err
 }
 
 func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket, error) {
 	url := BaseURL + fmt.Sprintf(handlers.GetHistogramURL, itemType, itemID) + "?resolution=" + resolution
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("get histogram failed: %d %s", resp.StatusCode, string(bodyBytes))
-	}
-
 	var result []models.HistogramBucket
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
+	err := get(url, &result)
+	return result, err
 }
 
 func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metrics, error) {
 	idsStr := strings.Join(itemIDs, ",")
 	url := BaseURL + fmt.Sprintf(handlers.GetMetricsListURL, itemType, idsStr)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("get metrics list failed: %d %s", resp.StatusCode, string(bodyBytes))
-	}
-
 	var result map[string]models.Metrics
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	err := get(url, &result)
+	return result, err
 }
 
 func GetRecentActivity(itemType, itemID string) ([]models.AuditLogPayload, error) {
 	url := BaseURL + fmt.Sprintf(handlers.GetRecentActivityURL, itemType, itemID)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("get recent activity failed: %d %s", resp.StatusCode, string(bodyBytes))
-	}
-
 	var result []models.AuditLogPayload
-	if err := json.Unmarshal(bodyBytes, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
+	err := get(url, &result)
+	return result, err
 }

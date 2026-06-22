@@ -156,7 +156,7 @@ func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metric
 
 	raw, err := singleton.D1Exec(sql, params...)
 	if err != nil {
-		return nil, err
+		return map[string]models.Metrics{}, err
 	}
 
 	var rows []struct {
@@ -165,7 +165,7 @@ func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metric
 		Total     int    `json:"total_count"`
 	}
 	if err := json.Unmarshal(raw, &rows); err != nil {
-		return nil, err
+		return map[string]models.Metrics{}, err
 	}
 
 	result := make(map[string]models.Metrics, len(itemIDs))
@@ -198,12 +198,12 @@ func GetRecentActivity(itemID string, itemType string) ([]models.AuditLogPayload
 
 	raw, err := singleton.D1Exec(sql, itemID, itemType)
 	if err != nil {
-		return nil, err
+		return []models.AuditLogPayload{}, err
 	}
 
 	var dbRows []models.AuditLogPayload
 	if err := json.Unmarshal(raw, &dbRows); err != nil {
-		return nil, err
+		return []models.AuditLogPayload{}, err
 	}
 
 	return dbRows, nil

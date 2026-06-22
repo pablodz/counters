@@ -190,8 +190,10 @@ func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metric
 }
 
 func GetRecentActivity(itemID string, itemType string) ([]models.AuditLogPayload, error) {
-	sql := `SELECT * FROM user_item_interactions_log
+	sql := `SELECT user_id, user_type, item_id, item_type, event_type, MAX(created_at) AS created_at
+		FROM user_item_interactions_log
 		WHERE item_id = ? AND item_type = ?
+		GROUP BY user_id, user_type, item_id, item_type, event_type
 		ORDER BY created_at DESC
 		LIMIT 20`
 

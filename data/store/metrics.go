@@ -22,12 +22,11 @@ func LogInteraction(log models.AuditLogPayload) error {
 		return err
 	}
 
-	// 2. Insertar el log de auditoría individual
 	sqlAudit := `INSERT INTO user_item_interactions_log
-		(id, user_id, user_type, item_id, item_type, event_type, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+		(user_id, user_type, item_id, item_type, event_type, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)`
 
-	if _, err := singleton.D1Exec(sqlAudit, log.ID, log.UserID, log.UserType, log.ItemID, log.ItemType, log.EventType, log.CreatedAt); err != nil {
+	if _, err := singleton.D1Exec(sqlAudit, log.UserID, log.UserType, log.ItemID, log.ItemType, log.EventType, log.CreatedAt); err != nil {
 		return err
 	}
 
@@ -81,25 +80,32 @@ func GetHistogram(itemID, itemType string, resolution string) ([]models.Histogra
 	from := to - (points * secs)
 	startBucket := (from / secs) * secs
 
-	buckets := make([]models.HistogramBucket, points)
-	bucketIndex := make(map[int64]int)
+	eventTypes := []string{"view", "like", "share"}
+	buckets := make([]models.HistogramBucket, 0, points*int64(len(eventTypes)))
+	bucketIndex := make(map[string]int)
 
+	idx := 0
 	for i := int64(0); i < points; i++ {
 		bTime := startBucket + (i * secs)
-		buckets[i] = models.HistogramBucket{
-			Bucket: bTime,
-			Total:  0,
+		for _, ev := range eventTypes {
+			buckets = append(buckets, models.HistogramBucket{
+				Bucket:    bTime,
+				EventType: ev,
+				Total:     0,
+			})
+			key := fmt.Sprintf("%d_%s", bTime, ev)
+			bucketIndex[key] = idx
+			idx++
 		}
-		bucketIndex[bTime] = int(i)
 	}
 
 	bucketExpr := fmt.Sprintf("(period_hour_unix / %d) * %d", secs, secs)
 
-	sql := fmt.Sprintf(`SELECT %s AS bucket, SUM(total_count) AS total
+	sql := fmt.Sprintf(`SELECT %s AS bucket, event_type, SUM(total_count) AS total
 		FROM item_interactions_hourly
 		WHERE item_id = ? AND item_type = ?
 		AND period_hour_unix >= ? AND period_hour_unix < ?
-		GROUP BY bucket
+		GROUP BY bucket, event_type
 		ORDER BY bucket ASC`, bucketExpr)
 
 	raw, err := singleton.D1Exec(sql, itemID, itemType, from, to)
@@ -113,8 +119,9 @@ func GetHistogram(itemID, itemType string, resolution string) ([]models.Histogra
 	}
 
 	for _, row := range dbRows {
-		if idx, exists := bucketIndex[row.Bucket]; exists {
-			buckets[idx].Total = row.Total
+		key := fmt.Sprintf("%d_%s", row.Bucket, row.EventType)
+		if index, exists := bucketIndex[key]; exists {
+			buckets[index].Total = row.Total
 		}
 	}
 

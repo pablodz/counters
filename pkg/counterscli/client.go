@@ -15,15 +15,6 @@ var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
-type Metrics struct {
-	ItemID      string `json:"item_id"`
-	ItemType    string `json:"item_type"`
-	ViewsCount  int    `json:"views_count"`
-	LikesCount  int    `json:"likes_count"`
-	SharesCount int    `json:"shares_count"`
-	UpdatedAt   int64  `json:"updated_at"`
-}
-
 func SetBaseURL(url string) {
 	BaseURL = url
 }
@@ -46,7 +37,6 @@ func incrementEvent(itemType, itemID, eventType, userId string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -93,8 +83,8 @@ func GetMetrics(itemType, itemID string) (map[string]int, error) {
 	return result, nil
 }
 
-func GetHistogram(itemType, itemID, eventType, resolution string) ([]models.HistogramBucket, error) {
-	url := fmt.Sprintf("%s/api/v1/histogram/%s/%s/%s?resolution=%s", BaseURL, itemType, itemID, eventType, resolution)
+func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket, error) {
+	url := fmt.Sprintf("%s/api/v1/histogram/%s/%s?resolution=%s", BaseURL, itemType, itemID, resolution)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -113,6 +103,7 @@ func GetHistogram(itemType, itemID, eventType, resolution string) ([]models.Hist
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("get histogram failed: %d %s", resp.StatusCode, string(bodyBytes))
 	}
+
 	var result []models.HistogramBucket
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err

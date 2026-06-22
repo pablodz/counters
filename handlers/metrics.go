@@ -15,20 +15,11 @@ func IncrementEvent(c fiber.Ctx) error {
 	eventType := c.Params("event_type")
 	userId := c.Params("user_id")
 
-	if itemType == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type required"})
-	}
-	if itemID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_id required"})
-	}
-	if eventType == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "event_type required"})
-	}
-	if userId == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id required"})
+	if itemType == "" || itemID == "" || eventType == "" || userId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "all path parameters are required"})
 	}
 
-	log := models.AuditLogPayload{
+	logData := models.AuditLogPayload{
 		UserID:    userId,
 		UserType:  "registered",
 		ItemID:    itemID,
@@ -37,7 +28,7 @@ func IncrementEvent(c fiber.Ctx) error {
 		CreatedAt: time.Now().Unix(),
 	}
 
-	if err := store.LogInteraction(log); err != nil {
+	if err := store.LogInteraction(logData); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -72,6 +63,7 @@ func GetHistogram(c fiber.Ctx) error {
 	result, err := store.GetHistogram(itemID, itemType, resolution)
 	if err != nil {
 		log.Printf("error getting histogram: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate histogram"})
 	}
 	return c.JSON(result)
 }

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -9,32 +9,11 @@ import (
 	"github.com/pablodz/counters/data/store"
 )
 
-func Health(c fiber.Ctx) error {
-	return c.JSON(fiber.Map{"status": "ok"})
-}
-
-func GetMetrics(c fiber.Ctx) error {
-	itemType := c.Params("item_type")
-	itemID := c.Params("item_id")
-
-	m, err := store.GetMetrics(itemID, itemType)
-	if err != nil || m == nil {
-		return c.JSON(&models.Metrics{
-			ItemID:      itemID,
-			ItemType:    itemType,
-			ViewsCount:  0,
-			LikesCount:  0,
-			SharesCount: 0,
-			UpdatedAt:   time.Now().Unix(),
-		})
-	}
-	return c.JSON(m)
-}
-
 func IncrementEvent(c fiber.Ctx) error {
 	itemType := c.Params("item_type")
 	itemID := c.Params("item_id")
 	eventType := c.Params("event_type")
+	userId := c.Get("user_id")
 
 	if itemType == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type required"})
@@ -45,48 +24,56 @@ func IncrementEvent(c fiber.Ctx) error {
 	if eventType == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "event_type required"})
 	}
-
-	unixHour, err := models.PrepararDatosInteraccion(models.TrackingPayload{
-		ItemID:    itemID,
-		ItemType:  itemType,
-		EventType: eventType,
-	})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if userId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id required"})
 	}
 
-	if err := store.LogInteraction(itemID, itemType, eventType, unixHour); err != nil {
+	logs := []models.AuditLogPayload{
+		{
+			UserID:    userId,
+			UserType:  "registered",
+			ItemID:    itemID,
+			ItemType:  itemType,
+			EventType: eventType,
+			CreatedAt: time.Now().Unix(),
+		},
+	}
+
+	if err := store.LogInteractions(logs); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(fiber.Map{"status": "ok"})
 }
 
+func GetMetrics(c fiber.Ctx) error {
+	itemType := c.Params("item_type")
+	itemID := c.Params("item_id")
+
+	m, err := store.GetMetrics(itemID, itemType)
+	if err != nil || m == nil {
+		return c.JSON(map[string]int{
+			"view":  0,
+			"like":  0,
+			"share": 0,
+		})
+	}
+
+	return c.JSON(m)
+}
+
 func GetHistogram(c fiber.Ctx) error {
 	itemType := c.Params("item_type")
 	itemID := c.Params("item_id")
-	eventType := c.Params("event_type")
-
 	resolution := c.Query("resolution", "1h")
-	if _, ok := models.ResolutionSeconds[resolution]; !ok {
-		resolution = "1h"
+
+	if !models.IsValidResolution(resolution) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid resolution"})
 	}
 
-	var from, to int64
-	if v := c.Query("from"); v != "" {
-		fmt.Sscanf(v, "%d", &from)
-	}
-	if v := c.Query("to"); v != "" {
-		fmt.Sscanf(v, "%d", &to)
-	}
-
-	result, err := store.GetHistogram(itemID, itemType, eventType, resolution, from, to)
+	result, err := store.GetHistogram(itemID, itemType, resolution)
 	if err != nil {
-		data := []models.HistogramBucket{}
-		for i := from; i <= to; i += models.ResolutionSeconds[resolution] {
-			data = append(data, models.HistogramBucket{Bucket: i, Total: 0})
-		}
-		return c.JSON(data)
+		log.Printf("error getting histogram: %v", err)
 	}
 	return c.JSON(result)
 }

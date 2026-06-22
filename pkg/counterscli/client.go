@@ -4,20 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/pablodz/counters/data/models"
 )
 
 var (
 	BaseURL    = "http://localhost:8080"
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
-
-type Event struct {
-	ItemID   string `json:"item_id"`
-	ItemType string `json:"item_type"`
-}
 
 type Metrics struct {
 	ItemID      string `json:"item_id"`
@@ -28,39 +24,24 @@ type Metrics struct {
 	UpdatedAt   int64  `json:"updated_at"`
 }
 
-type HistogramBucket struct {
-	Bucket int64 `json:"bucket"`
-	Total  int   `json:"total"`
-}
-
-type APIError struct {
-	StatusCode int
-	Message    string
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
 func SetBaseURL(url string) {
 	BaseURL = url
 }
 
-func IncrementLike(event Event) error {
-	return incrementEvent(event.ItemType, event.ItemID, "like")
+func IncrementLike(itemId, itemType, userId string) error {
+	return incrementEvent(itemType, itemId, "like", userId)
 }
 
-func IncrementShare(event Event) error {
-	return incrementEvent(event.ItemType, event.ItemID, "share")
+func IncrementShare(itemId, itemType, userId string) error {
+	return incrementEvent(itemType, itemId, "share", userId)
 }
 
-func IncrementView(event Event) error {
-	return incrementEvent(event.ItemType, event.ItemID, "view")
+func IncrementView(itemId, itemType, userId string) error {
+	return incrementEvent(itemType, itemId, "view", userId)
 }
 
-func incrementEvent(itemType, itemID, eventType string) error {
-	url := BaseURL + "/api/v1/" + itemType + "/" + itemID + "/" + eventType
-
+func incrementEvent(itemType, itemID, eventType, userId string) error {
+	url := fmt.Sprintf("%s/api/v1/%s/%s/%s/%s", BaseURL, itemType, itemID, eventType, userId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -73,17 +54,18 @@ func incrementEvent(itemType, itemID, eventType string) error {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 	if resp.StatusCode >= 400 {
-		log.Printf("Increment event failed: %d %s", resp.StatusCode, string(bodyBytes))
-		return &APIError{StatusCode: resp.StatusCode, Message: string(bodyBytes)}
+		return fmt.Errorf("increment event failed: %d %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
 
-func GetMetrics(itemType, itemID string) (*Metrics, error) {
-	url := BaseURL + "/api/v1/" + itemType + "/" + itemID
-
+func GetMetrics(itemType, itemID string) (map[string]int, error) {
+	url := fmt.Sprintf("%s/api/v1/%s/%s", BaseURL, itemType, itemID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -95,28 +77,24 @@ func GetMetrics(itemType, itemID string) (*Metrics, error) {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode >= 400 {
-		log.Printf("Get metrics failed: %d %s", resp.StatusCode, string(bodyBytes))
-		return nil, &APIError{StatusCode: resp.StatusCode, Message: string(bodyBytes)}
+		return nil, fmt.Errorf("get metrics failed: %d %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var result Metrics
+	var result map[string]int
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+
+	return result, nil
 }
 
-func GetHistogram(itemType, itemID, eventType, resolution string, from, to int64) ([]HistogramBucket, error) {
-	url := BaseURL + "/api/v1/histogram/" + itemType + "/" + itemID + "/" + eventType + "?resolution=" + resolution
-	if from > 0 {
-		url += fmt.Sprintf("&from=%d", from)
-	}
-	if to > 0 {
-		url += fmt.Sprintf("&to=%d", to)
-	}
-
+func GetHistogram(itemType, itemID, eventType, resolution string) ([]models.HistogramBucket, error) {
+	url := fmt.Sprintf("%s/api/v1/histogram/%s/%s/%s?resolution=%s", BaseURL, itemType, itemID, eventType, resolution)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -128,13 +106,14 @@ func GetHistogram(itemType, itemID, eventType, resolution string, from, to int64
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 {
-		log.Printf("Get histogram failed: %d %s", resp.StatusCode, string(bodyBytes))
-		return nil, &APIError{StatusCode: resp.StatusCode, Message: string(bodyBytes)}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
-
-	var result []HistogramBucket
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("get histogram failed: %d %s", resp.StatusCode, string(bodyBytes))
+	}
+	var result []models.HistogramBucket
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}

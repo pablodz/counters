@@ -20,10 +20,8 @@ func main() {
 		Format: "${time} | ${status} | ${latency} | ${ip} | ${method} | ${url}\n",
 	}))
 
-	app.Get("/healthz", handlers.Health)
-
 	v1 := app.Group("/api/v1")
-	v1.Get("/:item_type/:item_id/:event_type", handlers.IncrementEvent)
+	v1.Get("/:item_type/:item_id/:event_type/:user_id", handlers.IncrementEvent)
 	v1.Get("/:item_type/:item_id", handlers.GetMetrics)
 	v1.Get("/histogram/:item_type/:item_id/:event_type", handlers.GetHistogram)
 

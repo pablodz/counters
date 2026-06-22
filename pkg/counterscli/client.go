@@ -79,10 +79,10 @@ func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket
 	return result, err
 }
 
-func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metrics, error) {
+func GetMetricsList(itemType string, itemIDs []string) (map[string]*models.Metrics, error) {
 	idsStr := strings.Join(itemIDs, ",")
 	url := BaseURL + fmt.Sprintf(handlers.GetMetricsListURL, itemType, idsStr)
-	var result map[string]models.Metrics
+	var result map[string]*models.Metrics
 	err := get(url, &result)
 	return result, err
 }

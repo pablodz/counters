@@ -89,11 +89,11 @@ func GetHistogram(itemID, itemType string, resolution string) ([]models.Histogra
 	startBucket := (from / secs) * secs
 
 	eventTypes := []string{"view", "like", "share"}
-	buckets := make([]models.HistogramBucket, 0, points*int64(len(eventTypes)))
+	buckets := make([]models.HistogramBucket, 0, (points+1)*int64(len(eventTypes)))
 	bucketIndex := make(map[string]int)
 
 	idx := 0
-	for i := int64(0); i < points; i++ {
+	for i := int64(0); i <= points; i++ {
 		bTime := startBucket + (i * secs)
 		for _, ev := range eventTypes {
 			buckets = append(buckets, models.HistogramBucket{

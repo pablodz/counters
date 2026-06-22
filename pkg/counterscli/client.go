@@ -23,6 +23,10 @@ func IncrementLike(itemId, itemType, userId string) error {
 	return incrementEvent(itemType, itemId, "like", userId)
 }
 
+func IncrementUnlike(itemId, itemType, userId string) error {
+	return incrementEvent(itemType, itemId, "unlike", userId)
+}
+
 func IncrementShare(itemId, itemType, userId string) error {
 	return incrementEvent(itemType, itemId, "share", userId)
 }

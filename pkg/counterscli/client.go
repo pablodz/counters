@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pablodz/counters/data/models"
+	"github.com/pablodz/counters/handlers"
 )
 
 var (
@@ -36,7 +37,7 @@ func IncrementView(itemId, itemType, userId string) error {
 }
 
 func incrementEvent(itemType, itemID, eventType, userId string) error {
-	url := fmt.Sprintf("%s/api/v1/%s/%s/%s/%s", BaseURL, itemType, itemID, eventType, userId)
+	url := BaseURL + fmt.Sprintf(handlers.IncrementEventURL, itemType, itemID, eventType, userId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -59,7 +60,7 @@ func incrementEvent(itemType, itemID, eventType, userId string) error {
 }
 
 func GetMetrics(itemType, itemID string) (models.Metrics, error) {
-	url := fmt.Sprintf("%s/api/v1/%s/%s", BaseURL, itemType, itemID)
+	url := BaseURL + fmt.Sprintf(handlers.GetMetricsURL, itemType, itemID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return models.Metrics{}, err
@@ -88,7 +89,7 @@ func GetMetrics(itemType, itemID string) (models.Metrics, error) {
 }
 
 func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket, error) {
-	url := fmt.Sprintf("%s/api/v1/histogram/%s/%s?resolution=%s", BaseURL, itemType, itemID, resolution)
+	url := BaseURL + fmt.Sprintf(handlers.GetHistogramURL, itemType, itemID) + "?resolution=" + resolution
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -116,7 +117,7 @@ func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket
 }
 
 func GetRecentActivity(itemType, itemID string) ([]models.AuditLogPayload, error) {
-	url := fmt.Sprintf("%s/api/v1/activity/%s/%s", BaseURL, itemType, itemID)
+	url := BaseURL + fmt.Sprintf(handlers.GetRecentActivityURL, itemType, itemID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

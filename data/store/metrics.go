@@ -189,9 +189,8 @@ func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metric
 	return result, nil
 }
 
-// Return last 20 points of recent activity for the given item
 func GetRecentActivity(itemID string, itemType string) ([]models.AuditLogPayload, error) {
-	sql := `SELECT * FROM audit_log
+	sql := `SELECT * FROM user_item_interactions_log
 		WHERE item_id = ? AND item_type = ?
 		ORDER BY timestamp DESC
 		LIMIT 20`

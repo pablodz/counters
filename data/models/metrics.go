@@ -22,3 +22,9 @@ type AuditLogPayload struct {
 	EventType string `json:"event_type"`
 	CreatedAt int64  `json:"created_at"`
 }
+
+type Metrics struct {
+	View  int `json:"view"`
+	Like  int `json:"like"`
+	Share int `json:"share"`
+}

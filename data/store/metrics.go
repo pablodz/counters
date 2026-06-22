@@ -13,7 +13,6 @@ func LogInteraction(log models.AuditLogPayload) error {
 	now := time.Now().Unix()
 	unixHour := (now / 3600) * 3600
 
-	// 1. Actualizar el contador por hora (Upsert)
 	sqlHourly := `INSERT INTO item_interactions_hourly (item_id, item_type, event_type, period_hour_unix, total_count)
 		VALUES (?, ?, ?, ?, 1)
 		ON CONFLICT(item_id, item_type, event_type, period_hour_unix) DO UPDATE SET total_count = total_count + 1`
@@ -33,7 +32,7 @@ func LogInteraction(log models.AuditLogPayload) error {
 	return nil
 }
 
-func GetMetrics(itemID, itemType string) (map[string]int, error) {
+func GetMetrics(itemID, itemType string) (models.Metrics, error) {
 	sql := `SELECT event_type, SUM(total_count) AS total_count
 		FROM item_interactions_hourly
 		WHERE item_id = ? AND item_type = ?
@@ -41,7 +40,7 @@ func GetMetrics(itemID, itemType string) (map[string]int, error) {
 
 	raw, err := singleton.D1Exec(sql, itemID, itemType)
 	if err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 
 	var rows []struct {
@@ -49,12 +48,20 @@ func GetMetrics(itemID, itemType string) (map[string]int, error) {
 		Total     int    `json:"total_count"`
 	}
 	if err := json.Unmarshal(raw, &rows); err != nil {
-		return nil, err
+		return models.Metrics{}, err
 	}
 
-	metrics := make(map[string]int)
+	var metrics models.Metrics
+
 	for _, row := range rows {
-		metrics[row.EventType] = row.Total
+		switch row.EventType {
+		case "view":
+			metrics.View = row.Total
+		case "like":
+			metrics.Like = row.Total
+		case "share":
+			metrics.Share = row.Total
+		}
 	}
 
 	return metrics, nil

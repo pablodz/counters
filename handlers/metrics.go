@@ -40,12 +40,9 @@ func GetMetrics(c fiber.Ctx) error {
 	itemID := c.Params("item_id")
 
 	m, err := store.GetMetrics(itemID, itemType)
-	if err != nil || m == nil {
-		return c.JSON(map[string]int{
-			"view":  0,
-			"like":  0,
-			"share": 0,
-		})
+	if err != nil {
+		log.Printf("error getting metrics: %v", err)
+		return c.JSON(m)
 	}
 
 	return c.JSON(m)

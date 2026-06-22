@@ -20,12 +20,11 @@ func main() {
 		Format: "${time} | ${status} | ${latency} | ${ip} | ${method} | ${url}\n",
 	}))
 
-	v1 := app.Group("/api/v1")
-	v1.Get(handlers.IncrementEventPattern, handlers.IncrementEvent)
-	v1.Get(handlers.GetMetricsPattern, handlers.GetMetrics)
-	v1.Get(handlers.GetMetricsListPattern, handlers.GetMetricsList)
-	v1.Get(handlers.GetHistogramPattern, handlers.GetHistogram)
-	v1.Get(handlers.GetRecentActivityPattern, handlers.GetRecentActivity)
+	app.Get(handlers.IncrementEventPattern, handlers.IncrementEvent)
+	app.Get(handlers.GetMetricsPattern, handlers.GetMetrics)
+	app.Get(handlers.GetMetricsListPattern, handlers.GetMetricsList)
+	app.Get(handlers.GetHistogramPattern, handlers.GetHistogram)
+	app.Get(handlers.GetRecentActivityPattern, handlers.GetRecentActivity)
 
 	if err := app.Listen(":8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

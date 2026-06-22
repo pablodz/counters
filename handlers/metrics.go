@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -59,6 +60,25 @@ func GetHistogram(c fiber.Ctx) error {
 	if err != nil {
 		log.Printf("error getting histogram: %v", err)
 	}
+	return c.JSON(result)
+}
+
+func GetMetricsList(c fiber.Ctx) error {
+	itemType := c.Params("item_type")
+	itemIDsParam := c.Query("item_ids", "")
+
+	if itemType == "" || itemIDsParam == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type path param and item_ids query param are required"})
+	}
+
+	itemIDs := strings.Split(itemIDsParam, ",")
+
+	result, err := store.GetMetricsList(itemType, itemIDs)
+	if err != nil {
+		log.Printf("error getting metrics list: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
 	return c.JSON(result)
 }
 

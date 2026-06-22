@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pablodz/counters/data/models"
@@ -133,6 +134,59 @@ func GetHistogram(itemID, itemType string, resolution string) ([]models.Histogra
 	}
 
 	return buckets, nil
+}
+
+func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metrics, error) {
+	if len(itemIDs) == 0 {
+		return map[string]models.Metrics{}, nil
+	}
+
+	placeholders := make([]string, len(itemIDs))
+	params := make([]any, 0, len(itemIDs)+1)
+	params = append(params, itemType)
+	for i, id := range itemIDs {
+		placeholders[i] = "?"
+		params = append(params, id)
+	}
+
+	sql := fmt.Sprintf(`SELECT item_id, event_type, SUM(total_count) AS total_count
+		FROM item_interactions_hourly
+		WHERE item_type = ? AND item_id IN (%s)
+		GROUP BY item_id, event_type`, strings.Join(placeholders, ", "))
+
+	raw, err := singleton.D1Exec(sql, params...)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []struct {
+		ItemID    string `json:"item_id"`
+		EventType string `json:"event_type"`
+		Total     int    `json:"total_count"`
+	}
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]models.Metrics, len(itemIDs))
+	for _, id := range itemIDs {
+		result[id] = models.Metrics{}
+	}
+
+	for _, row := range rows {
+		m := result[row.ItemID]
+		switch row.EventType {
+		case "view":
+			m.View = row.Total
+		case "like":
+			m.Like = row.Total
+		case "share":
+			m.Share = row.Total
+		}
+		result[row.ItemID] = m
+	}
+
+	return result, nil
 }
 
 // Return last 20 points of recent activity for the given item

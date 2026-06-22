@@ -3,56 +3,32 @@ package store
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pablodz/counters/data/models"
 	"github.com/pablodz/counters/singleton"
 )
 
-func LogInteractions(logs []models.AuditLogPayload) error {
-	if len(logs) == 0 {
-		return nil
-	}
-
+func LogInteraction(log models.AuditLogPayload) error {
 	now := time.Now().Unix()
 	unixHour := (now / 3600) * 3600
 
-	for _, log := range logs {
-		sqlHourly := `INSERT INTO item_interactions_hourly (item_id, item_type, event_type, period_hour_unix, total_count)
-			VALUES (?, ?, ?, ?, 1)
-			ON CONFLICT(item_id, item_type, event_type, period_hour_unix) DO UPDATE SET total_count = total_count + 1`
+	// 1. Actualizar el contador por hora (Upsert)
+	sqlHourly := `INSERT INTO item_interactions_hourly (item_id, item_type, event_type, period_hour_unix, total_count)
+		VALUES (?, ?, ?, ?, 1)
+		ON CONFLICT(item_id, item_type, event_type, period_hour_unix) DO UPDATE SET total_count = total_count + 1`
 
-		if _, err := singleton.D1Exec(sqlHourly, log.ItemID, log.ItemType, log.EventType, unixHour); err != nil {
-			return err
-		}
+	if _, err := singleton.D1Exec(sqlHourly, log.ItemID, log.ItemType, log.EventType, unixHour); err != nil {
+		return err
 	}
 
-	const fieldsPerInteration = 7
-	const maxRowsPerChunk = 14
+	// 2. Insertar el log de auditoría individual
+	sqlAudit := `INSERT INTO user_item_interactions_log
+		(id, user_id, user_type, item_id, item_type, event_type, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-	for i := 0; i < len(logs); i += maxRowsPerChunk {
-		end := i + maxRowsPerChunk
-		if end > len(logs) {
-			end = len(logs)
-		}
-		chunk := logs[i:end]
-
-		placeholders := make([]string, len(chunk))
-		args := make([]interface{}, 0, len(chunk)*fieldsPerInteration)
-
-		for j, log := range chunk {
-			placeholders[j] = "(?, ?, ?, ?, ?, ?, ?)"
-			args = append(args, log.ID, log.UserID, log.UserType, log.ItemID, log.ItemType, log.EventType, log.CreatedAt)
-		}
-
-		sqlAudit := fmt.Sprintf(`INSERT INTO user_item_interactions_log
-			(id, user_id, user_type, item_id, item_type, event_type, created_at)
-			VALUES %s`, strings.Join(placeholders, ", "))
-
-		if _, err := singleton.D1Exec(sqlAudit, args...); err != nil {
-			return err
-		}
+	if _, err := singleton.D1Exec(sqlAudit, log.ID, log.UserID, log.UserType, log.ItemID, log.ItemType, log.EventType, log.CreatedAt); err != nil {
+		return err
 	}
 
 	return nil

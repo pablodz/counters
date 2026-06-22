@@ -28,18 +28,16 @@ func IncrementEvent(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id required"})
 	}
 
-	logs := []models.AuditLogPayload{
-		{
-			UserID:    userId,
-			UserType:  "registered",
-			ItemID:    itemID,
-			ItemType:  itemType,
-			EventType: eventType,
-			CreatedAt: time.Now().Unix(),
-		},
+	log := models.AuditLogPayload{
+		UserID:    userId,
+		UserType:  "registered",
+		ItemID:    itemID,
+		ItemType:  itemType,
+		EventType: eventType,
+		CreatedAt: time.Now().Unix(),
 	}
 
-	if err := store.LogInteractions(logs); err != nil {
+	if err := store.LogInteraction(log); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 

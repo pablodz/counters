@@ -42,9 +42,7 @@ func GetMetrics(c fiber.Ctx) error {
 	m, err := store.GetMetrics(itemID, itemType)
 	if err != nil {
 		log.Printf("error getting metrics: %v", err)
-		return c.JSON(m)
 	}
-
 	return c.JSON(m)
 }
 
@@ -60,7 +58,6 @@ func GetHistogram(c fiber.Ctx) error {
 	result, err := store.GetHistogram(itemID, itemType, resolution)
 	if err != nil {
 		log.Printf("error getting histogram: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate histogram"})
 	}
 	return c.JSON(result)
 }
@@ -72,7 +69,6 @@ func GetRecentActivity(c fiber.Ctx) error {
 	result, err := store.GetRecentActivity(itemID, itemType)
 	if err != nil {
 		log.Printf("error getting recent activity: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get recent activity"})
 	}
 	return c.JSON(result)
 }

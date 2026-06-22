@@ -192,7 +192,7 @@ func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metric
 func GetRecentActivity(itemID string, itemType string) ([]models.AuditLogPayload, error) {
 	sql := `SELECT * FROM user_item_interactions_log
 		WHERE item_id = ? AND item_type = ?
-		ORDER BY timestamp DESC
+		ORDER BY created_at DESC
 		LIMIT 20`
 
 	raw, err := singleton.D1Exec(sql, itemID, itemType)

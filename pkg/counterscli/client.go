@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pablodz/counters/data/models"
@@ -113,6 +114,37 @@ func GetHistogram(itemType, itemID, resolution string) ([]models.HistogramBucket
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}
+	return result, nil
+}
+
+func GetMetricsList(itemType string, itemIDs []string) (map[string]models.Metrics, error) {
+	idsStr := strings.Join(itemIDs, ",")
+	url := BaseURL + fmt.Sprintf(handlers.GetMetricsListURL, itemType, idsStr)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("get metrics list failed: %d %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result map[string]models.Metrics
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 

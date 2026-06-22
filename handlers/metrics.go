@@ -13,7 +13,7 @@ func IncrementEvent(c fiber.Ctx) error {
 	itemType := c.Params("item_type")
 	itemID := c.Params("item_id")
 	eventType := c.Params("event_type")
-	userId := c.Get("user_id")
+	userId := c.Params("user_id")
 
 	if itemType == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "item_type required"})
